@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
@@ -9,28 +10,27 @@ error TokenNotAvailable();
 error NoSuchInvestigation();
 error TokensWereWithdrawn();
 error NotAllowedToWithdraw();
+error BadApprove();
 error FailedToTransfer();
 
 //make upgradable
 contract Staking is OwnableUpgradeable {
 
+    using SafeERC20 for IERC20;
+
     struct Investigation {
         address user;
-        string tokenName;
+        address token;
         uint amount;
         uint startDate;
         uint endDate;
     }
-
-    event NewTokenAdditing (
-        uint timestamp,
-        string tokenName
-    );
     
-    uint private constant PERCENT_IN_DAY = 273 * 1e7;//10% per year
+    uint private constant PRECISION = 1e18;
+    uint private constant PERCENT_IN_YEAR = 10 * PRECISION / 1e2;//10% per year => 0.1
+    uint private constant DAYS_IN_YEAR = 365;
 
-    mapping(string => address) private availableTokens;
-    mapping(string => uint) private balancesOfContractTokens;
+    mapping(address => bool) private availableTokens;
     mapping(uint => Investigation) private usersInvestigations;
 
     uint private counterId = 0;
@@ -43,114 +43,118 @@ contract Staking is OwnableUpgradeable {
         return counterId;
     }
 
-    function getAvailableToken(string memory key) public view returns (address) {
-        return availableTokens[key];
+    function getAvailableToken(address _key) public view returns (bool) {
+        return availableTokens[_key];
     }
 
-    function getBalanceOfContractToken(string memory key) public view returns (uint) {
-        return balancesOfContractTokens[key];
+    function getBalanceOfContractToken(address token) public view returns (uint) {
+        return IERC20(token).balanceOf(address(this));
     }
 
     function getInvestigationById(uint _tokenId) external view returns(Investigation memory) {
         return usersInvestigations[_tokenId];
     }
 
-    function addNewToken(address _token, string memory _tokenName) external onlyOwner {
+    function addNewToken(address _token) external onlyOwner {
         require(_token != address(0), AddressIsEmpty());
-        availableTokens[_tokenName] = _token;
-
-        emit NewTokenAdditing(block.timestamp, _tokenName);
+        availableTokens[_token] = true;
     }
 
-    function withdrawTokensFromContract(string memory tokenName, uint amount)  external onlyOwner returns(bool) {
-        require(availableTokens[tokenName] != address(0), TokenNotAvailable());
+    function withdrawTokensFromContract(address tokenAddress, uint amount)  external onlyOwner {
+        require(tokenAddress != address(0) && availableTokens[tokenAddress], TokenNotAvailable());
 
-        IERC20 token = IERC20(availableTokens[tokenName]);
+        IERC20 token = IERC20(tokenAddress);
+        bool result = token.transfer(msg.sender, amount);
 
-        token.approve(address(this), amount);
-
-        bool result = token.transferFrom(address(this), msg.sender, amount);
-
-        balancesOfContractTokens[tokenName] = balancesOfContractTokens[tokenName] - amount;
-
-        return result;
+        require (result, FailedToTransfer());
     }
 
-    function addTokensAmountForStakingReward(string memory tokenName, uint amount) external onlyOwner returns(bool) {
-        require(availableTokens[tokenName] != address(0), TokenNotAvailable());
+    function addTokensAmountForStakingReward(address _tokenAddress, uint _amount) external onlyOwner  {
+        require(availableTokens[_tokenAddress] == true, TokenNotAvailable());
 
-        IERC20 token = IERC20(availableTokens[tokenName]);
+        IERC20 token = IERC20(_tokenAddress);
 
-        token.approve(msg.sender, amount);
+        if(token.allowance(msg.sender, address(this)) < _amount){
+            revert("You don't have allowance for that");
+        }
 
-        bool result = token.transferFrom(msg.sender, address(this), amount);
-
-        balancesOfContractTokens[tokenName] = balancesOfContractTokens[tokenName] + amount;
-
-        return result;
+        if (_tokenAddress == 0xdAC17F958D2ee523a2206206994597C13D831ec7) {
+            token.transferFrom(msg.sender, address(this), _amount);
+        } else {
+            bool result = token.transferFrom(msg.sender, address(this), _amount);
+            require(result, FailedToTransfer());
+        }
     }
 
-    function addNewStakingAmount(string memory _tokenName, uint _amount) external returns(uint) {
-        IERC20 token = IERC20(availableTokens[_tokenName]);
+    function addNewStakingAmount(address _tokenAddress, uint _amount) external returns(uint) {
+        IERC20 token = IERC20(_tokenAddress);
+        token.approve(msg.sender, _amount);
+        bool result = token.transferFrom(address(this), msg.sender, _amount);
 
-        counterId = counterId + 1;
-
-        token.transferFrom(msg.sender, address(this), _amount);
-
-        balancesOfContractTokens[_tokenName] = balancesOfContractTokens[_tokenName] + _amount;
+        require (result, FailedToTransfer());
 
         Investigation memory inv = Investigation({
             user: address(msg.sender),
-            tokenName: _tokenName,
+            token: address(_tokenAddress),
             amount: _amount,
             startDate: block.timestamp,
             endDate: 0
         });
 
+        counterId++;
         usersInvestigations[counterId] = inv;
 
         return counterId;
     }
 
     function witdrawTokens(uint investigationId, uint amountToWitdraw) external payable {
-        require(usersInvestigations[investigationId].user != address(0), NoSuchInvestigation());
-
         Investigation memory inv = usersInvestigations[investigationId];
 
+        require(inv.user != address(0), NoSuchInvestigation());
         require(inv.user == msg.sender, NotAllowedToWithdraw());
-
         require(inv.endDate == 0, TokensWereWithdrawn());
 
-        uint daysStaked = (block.timestamp - inv.startDate) / 86400;
+        uint result = countRefund(inv) + amountToWitdraw;
+        usersInvestigations[investigationId].endDate = block.timestamp;
 
-        uint256 result = ((PERCENT_IN_DAY * daysStaked * amountToWitdraw) / 1e7) + amountToWitdraw;
-
-        IERC20 token = IERC20(availableTokens[inv.tokenName]);
-
+        IERC20 token = IERC20(inv.token);
         bool success = token.transfer(inv.user, result);
-        require(success, FailedToTransfer());
 
-        balancesOfContractTokens[inv.tokenName] = balancesOfContractTokens[inv.tokenName] - result;
-
-        usersInvestigations[investigationId] = Investigation({
-            user: inv.user,
-            tokenName: inv.tokenName,
-            amount: inv.amount,
-            startDate: inv.startDate,
-            endDate: block.timestamp
-        });
-
+        if (!success) {
+            usersInvestigations[investigationId].endDate = 0;
+            revert FailedToTransfer();
+        }
+    
         if (amountToWitdraw < inv.amount) {
-
-            counterId = counterId + 1;
+            counterId++;
 
             usersInvestigations[counterId] = Investigation({
                 user: inv.user,
-                tokenName: inv.tokenName,
+                token: inv.token,
                 amount: inv.amount - amountToWitdraw,
                 startDate: inv.startDate,
-                endDate: block.timestamp
+                endDate: 0
             });
         }
+    }
+
+    function countRefund(Investigation memory inv) private view returns(uint) {
+        uint256 stakingDuration = block.timestamp - inv.startDate / 86400;
+        uint result = ((stakingDuration * PERCENT_IN_YEAR * inv.amount) / (DAYS_IN_YEAR * PRECISION));
+        return result;
+    }
+
+    function getRefund(uint investigationId) external payable {
+        Investigation memory inv = usersInvestigations[investigationId];
+
+        require(inv.user != address(0), NoSuchInvestigation());
+        require(inv.user == msg.sender, NotAllowedToWithdraw());
+        require(inv.endDate == 0, TokensWereWithdrawn());
+
+        uint result = countRefund(inv);
+        IERC20 token = IERC20(inv.token);
+        bool success = token.transfer(inv.user, result);
+
+        require(success, FailedToTransfer());
     }
 }
