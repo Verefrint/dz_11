@@ -12,6 +12,8 @@ error TokensWereWithdrawn();
 error NotAllowedToWithdraw();
 error BadApprove();
 error FailedToTransfer();
+error NotHaveAllowance();
+error ReentrancyTry();
 
 //make upgradable
 contract Staking is OwnableUpgradeable {
@@ -27,11 +29,13 @@ contract Staking is OwnableUpgradeable {
     }
     
     uint private constant PRECISION = 1e18;
-    uint private constant PERCENT_IN_YEAR = 10 * PRECISION / 1e2;//10% per year => 0.1
+    uint private constant PERCENT_IN_YEAR = 10 * PRECISION;//10% per year => 0.1
     uint private constant DAYS_IN_YEAR = 365;
 
     mapping(address => bool) private availableTokens;
     mapping(uint => Investigation) private usersInvestigations;
+
+    bool isInside = false;
 
     uint private counterId = 0;
 
@@ -60,38 +64,27 @@ contract Staking is OwnableUpgradeable {
         availableTokens[_token] = true;
     }
 
-    function withdrawTokensFromContract(address tokenAddress, uint amount)  external onlyOwner {
-        require(tokenAddress != address(0) && availableTokens[tokenAddress], TokenNotAvailable());
+    function withdrawTokensFromContract(address _tokenAddress, uint _amount)  external onlyOwner {
+        require(_tokenAddress != address(0) && availableTokens[_tokenAddress], TokenNotAvailable());
 
-        IERC20 token = IERC20(tokenAddress);
-        bool result = token.transfer(msg.sender, amount);
-
-        require (result, FailedToTransfer());
+        IERC20 token = IERC20(_tokenAddress);
+        token.safeTransfer(msg.sender, _amount);
     }
 
     function addTokensAmountForStakingReward(address _tokenAddress, uint _amount) external onlyOwner  {
         require(availableTokens[_tokenAddress] == true, TokenNotAvailable());
 
         IERC20 token = IERC20(_tokenAddress);
+        require(token.allowance(msg.sender, address(this)) >= _amount, NotHaveAllowance());
 
-        if(token.allowance(msg.sender, address(this)) < _amount){
-            revert("You don't have allowance for that");
-        }
-
-        if (_tokenAddress == 0xdAC17F958D2ee523a2206206994597C13D831ec7) {
-            token.transferFrom(msg.sender, address(this), _amount);
-        } else {
-            bool result = token.transferFrom(msg.sender, address(this), _amount);
-            require(result, FailedToTransfer());
-        }
+        token.safeTransferFrom(msg.sender, address(this), _amount);
     }
 
     function addNewStakingAmount(address _tokenAddress, uint _amount) external returns(uint) {
         IERC20 token = IERC20(_tokenAddress);
-        token.approve(msg.sender, _amount);
-        bool result = token.transferFrom(address(this), msg.sender, _amount);
 
-        require (result, FailedToTransfer());
+        require(token.allowance(msg.sender, address(this)) >= _amount, NotHaveAllowance());
+        token.safeTransferFrom(msg.sender, address(this), _amount);
 
         Investigation memory inv = Investigation({
             user: address(msg.sender),
@@ -108,6 +101,8 @@ contract Staking is OwnableUpgradeable {
     }
 
     function witdrawTokens(uint investigationId, uint amountToWitdraw) external payable {
+        require(!isInside, ReentrancyTry());
+        isInside = true;
         Investigation memory inv = usersInvestigations[investigationId];
 
         require(inv.user != address(0), NoSuchInvestigation());
@@ -115,15 +110,12 @@ contract Staking is OwnableUpgradeable {
         require(inv.endDate == 0, TokensWereWithdrawn());
 
         uint result = countRefund(inv) + amountToWitdraw;
-        usersInvestigations[investigationId].endDate = block.timestamp;
 
         IERC20 token = IERC20(inv.token);
-        bool success = token.transfer(inv.user, result);
+        token.safeTransfer(inv.user, result);
+        isInside = false;
 
-        if (!success) {
-            usersInvestigations[investigationId].endDate = 0;
-            revert FailedToTransfer();
-        }
+        usersInvestigations[investigationId].endDate = block.timestamp;
     
         if (amountToWitdraw < inv.amount) {
             counterId++;
@@ -139,8 +131,9 @@ contract Staking is OwnableUpgradeable {
     }
 
     function countRefund(Investigation memory inv) private view returns(uint) {
-        uint256 stakingDuration = block.timestamp - inv.startDate / 86400;
-        uint result = ((stakingDuration * PERCENT_IN_YEAR * inv.amount) / (DAYS_IN_YEAR * PRECISION));
+        uint256 stakingDuration = (block.timestamp - inv.startDate) / 86400;
+        uint result = ((stakingDuration * PERCENT_IN_YEAR * inv.amount) / (DAYS_IN_YEAR * PRECISION * 1e2));
+
         return result;
     }
 

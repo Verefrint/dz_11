@@ -89,220 +89,298 @@ describe("test staking contract", async function() {
 
     expect(await contract.getBalanceOfContractToken(usdt)).to.equal(usdtAmountInWei);
 
-    // const stakingUser = await ethers.getImpersonatedSigner("0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503");
+    const stakingUser = await ethers.getImpersonatedSigner("0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503");
 
-    // const usdcStakingAmount = "20"; // 20 USDC
-    // const usdcStakingAmountInWei = ethers.parseUnits(usdcStakingAmount, usdcDecimals);
+    const usdtStakingAmount = "20"; // 20 USDC
+    const usdtStakingAmountInWei = ethers.parseUnits(usdtStakingAmount, usdtDecimals);
 
-    // await token.connect(stakingUser).approve(contract.getAddress(), usdcStakingAmountInWei);
+    await token.connect(stakingUser).approve(contract.getAddress(), usdtStakingAmountInWei);
 
-    // const stakingAllowance = await token.allowance(stakingUser.getAddress(), contract.getAddress());
-    // expect(stakingAllowance).to.equal(usdcStakingAmountInWei);
+    const stakingAllowance = await token.allowance(stakingUser.getAddress(), contract.getAddress());
+    expect(stakingAllowance).to.equal(usdtStakingAmountInWei);
 
-    // await contract.connect(stakingUser).addNewStakingAmount(usdc, usdcStakingAmountInWei);
+    await contract.connect(stakingUser).addNewStakingAmount(usdt, usdtStakingAmountInWei);
 
-    // expect(await contract.getBalanceOfContractToken(tokenName)).to.equal(usdcStakingAmountInWei + usdcAmountInWei);
+    expect(await contract.getBalanceOfContractToken(usdt)).to.equal(usdtStakingAmountInWei + usdtAmountInWei);
 
-    // const blockNumBefore = await ethers.provider.getBlockNumber();
-    // const blockBefore = await ethers.provider.getBlock(blockNumBefore);
-    // const timestampBefore = blockBefore?.timestamp;
+    const blockNumBefore = await ethers.provider.getBlockNumber();
+    const blockBefore = await ethers.provider.getBlock(blockNumBefore);
+    const timestampBefore = blockBefore?.timestamp;
 
-  
-    // const stakingData = await contract.getInvestigationById(await contract.getLastId());
-    // expect(stakingData.user).to.equal(await stakingUser.getAddress());
-    // expect(stakingData.tokenName).to.equal(tokenName);
-    // expect(stakingData.amount).to.equal(usdcStakingAmountInWei);
-    // expect(stakingData.startDate).to.equal(timestampBefore)
-    // expect(stakingData.endDate).to.equal(0)
+    const stakingData = await contract.getInvestigationById(await contract.getLastId());
+    expect(stakingData.user).to.equal(await stakingUser.getAddress());
+    expect(stakingData.token).to.equal(usdt);
+    expect(stakingData.amount).to.equal(usdtStakingAmountInWei);
+    expect(stakingData.startDate).to.equal(timestampBefore)
+    expect(stakingData.endDate).to.equal(0)
   });
 
-  // it("should owner withdraw money", async function() {
-  //   const { ethUser, contract } = await loadFixture(deploy);
+  it("should owner withdraw money", async function() {
+    const { ethUser, contract } = await loadFixture(deploy);
 
-  //   const tokenName = "USDC";
-  //   const tokenAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+    const tokenAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";//"USDC"
 
-  //   await contract.connect(ethUser).addNewToken(tokenAddress, tokenName);
+    await contract.connect(ethUser).addNewToken(tokenAddress);
 
-  //   const availableToken = await contract.connect(ethUser).getAvailableToken(tokenName);
-  //   expect(availableToken).to.equal(tokenAddress);
+    const availableToken = await contract.connect(ethUser).getAvailableToken(tokenAddress);
+    expect(availableToken).to.equal(true);
 
-  //   const usdcAmountToWithdraw = "50"; 
-  //   const usdcDecimalsToWithdraw = 6; 
-  //   const usdcAmountInWeiToWithdraw = ethers.parseUnits(usdcAmountToWithdraw, usdcDecimalsToWithdraw);
+    const usdcAmountToWithdraw = "50"; 
+    const usdcDecimalsToWithdraw = 6; 
+    const usdcAmountInWeiToWithdraw = ethers.parseUnits(usdcAmountToWithdraw, usdcDecimalsToWithdraw);
 
-  //   await expect(contract.connect(ethUser).withdrawTokensFromContract(tokenName, usdcAmountInWeiToWithdraw)).to.be.revertedWith('ERC20: transfer amount exceeds balance')
+    await expect(contract.connect(ethUser).withdrawTokensFromContract(tokenAddress, usdcAmountInWeiToWithdraw)).to.be.revertedWith('ERC20: transfer amount exceeds balance')
 
-  //   const token = IERC20__factory.connect(tokenAddress, ethUser);
+    const token = IERC20__factory.connect(tokenAddress, ethUser);
 
-  //   const usdcAmount = "100"; 
-  //   const usdcDecimals = 6; 
-  //   const usdcAmountInWei = ethers.parseUnits(usdcAmount, usdcDecimals);
+    const usdcAmount = "100"; 
+    const usdcDecimals = 6; 
+    const usdcAmountInWei = ethers.parseUnits(usdcAmount, usdcDecimals);
 
-  //   await token.connect(ethUser).approve(contract.getAddress(), usdcAmountInWei);
+    await token.connect(ethUser).approve(contract.getAddress(), usdcAmountInWei);
 
-  //   const allowance = await token.allowance(ethUser.getAddress(), contract.getAddress());
-  //   expect(allowance).to.equal(usdcAmountInWei);
+    const allowance = await token.allowance(ethUser.getAddress(), contract.getAddress());
+    expect(allowance).to.equal(usdcAmountInWei);
 
-  //   await contract.connect(ethUser).addTokensAmountForStakingReward(tokenName, usdcAmountInWei);
+    await contract.connect(ethUser).addTokensAmountForStakingReward(tokenAddress, usdcAmountInWei);
 
-  //   const contractBalance = await contract.getBalanceOfContractToken(tokenName);
-  //   expect(contractBalance).to.equal(usdcAmountInWei);
+    const contractBalance = await contract.getBalanceOfContractToken(tokenAddress);
+    expect(contractBalance).to.equal(usdcAmountInWei);
 
-  //   const beforeWitdraw = await token.balanceOf(ethUser) 
+    const beforeWitdraw = await token.balanceOf(ethUser) 
 
-  //   await expect(contract.connect(ethUser).withdrawTokensFromContract("", usdcAmountInWeiToWithdraw)).to.be.revertedWithCustomError(contract, "TokenNotAvailable")
+    await expect(contract.connect(ethUser).withdrawTokensFromContract("0xdAC17F958D2ee523a2206206994597C13D831ec7", usdcAmountInWeiToWithdraw)).to.be.revertedWithCustomError(contract, "TokenNotAvailable")//usdt
 
-  //   await contract.connect(ethUser).withdrawTokensFromContract(tokenName, usdcAmountInWeiToWithdraw)
+    await contract.connect(ethUser).withdrawTokensFromContract(tokenAddress, usdcAmountInWeiToWithdraw)
 
-  //   expect(await contract.getBalanceOfContractToken(tokenName)).to.equal(usdcAmountInWeiToWithdraw)
-  //   expect(await token.balanceOf(ethUser)).to.equal(beforeWitdraw + usdcAmountInWeiToWithdraw)
-  // })
+    expect(await contract.getBalanceOfContractToken(tokenAddress)).to.equal(usdcAmountInWeiToWithdraw)
+    expect(await token.balanceOf(ethUser)).to.equal(beforeWitdraw + usdcAmountInWeiToWithdraw)
+  })
 
-  // it("client should withdraw money with no reward", async function() {
-  //   const { ethUser, contract } = await loadFixture(deploy);
+  it("client should withdraw money with no reward", async function() {
+    const { ethUser, contract } = await loadFixture(deploy);
 
-  //   const tokenName = "USDC";
-  //   const tokenAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+    const tokenAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";//"USDC"
 
-  //   await contract.connect(ethUser).addNewToken(tokenAddress, tokenName);
+    await contract.connect(ethUser).addNewToken(tokenAddress);
 
-  //   const availableToken = await contract.connect(ethUser).getAvailableToken(tokenName);
-  //   expect(availableToken).to.equal(tokenAddress);
+    const availableToken = await contract.connect(ethUser).getAvailableToken(tokenAddress);
+    expect(availableToken).to.equal(true);
 
-  //   const token = IERC20__factory.connect(tokenAddress, ethUser);
+    const usdcAmountToWithdraw = "50"; 
+    const usdcDecimalsToWithdraw = 6; 
+    const usdcAmountInWeiToWithdraw = ethers.parseUnits(usdcAmountToWithdraw, usdcDecimalsToWithdraw);
 
-  //   const usdcAmount = "100"; // 100 USDC
-  //   const usdcDecimals = 6; 
-  //   const usdcAmountInWei = ethers.parseUnits(usdcAmount, usdcDecimals);
+    await expect(contract.connect(ethUser).withdrawTokensFromContract(tokenAddress, usdcAmountInWeiToWithdraw)).to.be.revertedWith('ERC20: transfer amount exceeds balance')
 
-  //   await token.connect(ethUser).approve(contract.getAddress(), usdcAmountInWei);
+    const token = IERC20__factory.connect(tokenAddress, ethUser);
 
-  //   const allowance = await token.allowance(ethUser.getAddress(), contract.getAddress());
-  //   expect(allowance).to.equal(usdcAmountInWei);
+    const usdcAmount = "100"; 
+    const usdcDecimals = 6; 
+    const usdcAmountInWei = ethers.parseUnits(usdcAmount, usdcDecimals);
 
-  //   await contract.connect(ethUser).addTokensAmountForStakingReward(tokenName, usdcAmountInWei);
+    await token.connect(ethUser).approve(contract.getAddress(), usdcAmountInWei);
 
-  //   const contractBalance = await contract.getBalanceOfContractToken(tokenName);
-  //   expect(contractBalance).to.equal(usdcAmountInWei);
+    const allowance = await token.allowance(ethUser.getAddress(), contract.getAddress());
+    expect(allowance).to.equal(usdcAmountInWei);
 
-  //   const stakingUser = await ethers.getImpersonatedSigner("0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503");
+    await contract.connect(ethUser).addTokensAmountForStakingReward(tokenAddress, usdcAmountInWei);
 
-  //   const usdcStakingAmount = "20"; // 20 USDC
-  //   const usdcStakingAmountInWei = ethers.parseUnits(usdcStakingAmount, usdcDecimals);
+    const contractBalance = await contract.getBalanceOfContractToken(tokenAddress);
+    expect(contractBalance).to.equal(usdcAmountInWei);
 
-  //   await token.connect(stakingUser).approve(contract.getAddress(), usdcStakingAmountInWei);
+    const stakingUser = await ethers.getImpersonatedSigner("0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503");
 
-  //   const stakingAllowance = await token.allowance(stakingUser.getAddress(), contract.getAddress());
-  //   expect(stakingAllowance).to.equal(usdcStakingAmountInWei);
+    const usdcStakingAmount = "20"; // 20 USDC
+    const usdcStakingAmountInWei = ethers.parseUnits(usdcStakingAmount, usdcDecimals);
 
-  //   await contract.connect(stakingUser).addNewStakingAmount(tokenName, usdcStakingAmountInWei);
+    await token.connect(stakingUser).approve(contract.getAddress(), usdcStakingAmountInWei);
 
-  //   expect(await contract.getBalanceOfContractToken(tokenName)).to.equal(usdcStakingAmountInWei + usdcAmountInWei);
+    const stakingAllowance = await token.allowance(stakingUser.getAddress(), contract.getAddress());
+    expect(stakingAllowance).to.equal(usdcStakingAmountInWei);
 
-  //   const blockNumBefore = await ethers.provider.getBlockNumber();
-  //   const blockBefore = await ethers.provider.getBlock(blockNumBefore);
-  //   const timestampBefore = blockBefore?.timestamp;
+    await contract.connect(stakingUser).addNewStakingAmount(tokenAddress, usdcStakingAmountInWei);
 
-  //   const stakingData = await contract.getInvestigationById(await contract.getLastId());
-  //   expect(stakingData.user).to.equal(await stakingUser.getAddress());
-  //   expect(stakingData.tokenName).to.equal(tokenName);
-  //   expect(stakingData.amount).to.equal(usdcStakingAmountInWei);
-  //   expect(stakingData.startDate).to.equal(timestampBefore);
-  //   expect(stakingData.endDate).to.equal(0);
+    expect(await contract.getBalanceOfContractToken(tokenAddress)).to.equal(usdcStakingAmountInWei + usdcAmountInWei);
 
-  //   await expect(contract.connect(stakingUser).witdrawTokens(0, usdcStakingAmountInWei)).to.be.revertedWithCustomError(contract, "NoSuchInvestigation")
+    const blockNumBefore = await ethers.provider.getBlockNumber();
+    const blockBefore = await ethers.provider.getBlock(blockNumBefore);
+    const timestampBefore = blockBefore?.timestamp;
 
-  //   const unauthorizedUser = await ethers.getImpersonatedSigner("0x0000000000000000000000000000000000000001");
+    const stakingData = await contract.getInvestigationById(await contract.getLastId());
+    expect(stakingData.user).to.equal(await stakingUser.getAddress());
+    expect(stakingData.token).to.equal(tokenAddress);
+    expect(stakingData.amount).to.equal(usdcStakingAmountInWei);
+    expect(stakingData.startDate).to.equal(timestampBefore);
+    expect(stakingData.endDate).to.equal(0);
 
-  //   await expect(contract.connect(unauthorizedUser).witdrawTokens(await contract.getLastId(), usdcStakingAmountInWei)).to.be.revertedWithCustomError(contract, "NotAllowedToWithdraw")
+    await expect(contract.connect(stakingUser).witdrawTokens(0, usdcStakingAmountInWei)).to.be.revertedWithCustomError(contract, "NoSuchInvestigation")
 
-  //   await contract.connect(stakingUser).witdrawTokens(await contract.getLastId(), usdcStakingAmountInWei);
+    const unauthorizedUser = await ethers.getImpersonatedSigner("0x0000000000000000000000000000000000000001");
 
-  //   await expect(contract.connect(stakingUser).witdrawTokens(await contract.getLastId(), usdcStakingAmountInWei)).to.be.revertedWithCustomError(contract, "TokensWereWithdrawn")
+    await expect(contract.connect(unauthorizedUser).witdrawTokens(await contract.getLastId(), usdcStakingAmountInWei)).to.be.revertedWithCustomError(contract, "NotAllowedToWithdraw")
 
-  //   const updatedContractBalance = await contract.getBalanceOfContractToken(tokenName);
-  //   expect(updatedContractBalance).to.equal(usdcAmountInWei);
+    await contract.connect(stakingUser).witdrawTokens(await contract.getLastId(), usdcStakingAmountInWei);
 
-  //   const updatedStakingData = await contract.getInvestigationById(await contract.getLastId());
-  //   expect(updatedStakingData.endDate).to.not.equal(0);
-  // });
+    await expect(contract.connect(stakingUser).witdrawTokens(await contract.getLastId(), usdcStakingAmountInWei)).to.be.revertedWithCustomError(contract, "TokensWereWithdrawn")
 
-  // it("client should withdraw money with no reward", async function() {
-  //   const { ethUser, contract } = await loadFixture(deploy);
+    const updatedContractBalance = await contract.getBalanceOfContractToken(tokenAddress);
+    expect(updatedContractBalance).to.equal(usdcAmountInWei);
 
-  //   const tokenName = "USDC";
-  //   const tokenAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+    const updatedStakingData = await contract.getInvestigationById(await contract.getLastId());
+    expect(updatedStakingData.endDate).to.not.equal(0);
+  });
 
-  //   await contract.connect(ethUser).addNewToken(tokenAddress, tokenName);
+  it("should withdraw only refund", async function() {
+    const { ethUser, contract } = await loadFixture(deploy);
 
-  //   const availableToken = await contract.connect(ethUser).getAvailableToken(tokenName);
-  //   expect(availableToken).to.equal(tokenAddress);
+    const tokenAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";//"USDC"
 
-  //   const token = IERC20__factory.connect(tokenAddress, ethUser);
+    await contract.connect(ethUser).addNewToken(tokenAddress);
 
-  //   const usdcAmount = "100"; // 100 USDC
-  //   const usdcDecimals = 6; 
-  //   const usdcAmountInWei = ethers.parseUnits(usdcAmount, usdcDecimals);
+    const availableToken = await contract.connect(ethUser).getAvailableToken(tokenAddress);
+    expect(availableToken).to.equal(true);
 
-  //   await token.connect(ethUser).approve(contract.getAddress(), usdcAmountInWei);
+    const usdcAmountToWithdraw = "50"; 
+    const usdcDecimalsToWithdraw = 6; 
+    const usdcAmountInWeiToWithdraw = ethers.parseUnits(usdcAmountToWithdraw, usdcDecimalsToWithdraw);
 
-  //   const allowance = await token.allowance(ethUser.getAddress(), contract.getAddress());
-  //   expect(allowance).to.equal(usdcAmountInWei);
+    await expect(contract.connect(ethUser).withdrawTokensFromContract(tokenAddress, usdcAmountInWeiToWithdraw)).to.be.revertedWith('ERC20: transfer amount exceeds balance')
 
-  //   await contract.connect(ethUser).addTokensAmountForStakingReward(tokenName, usdcAmountInWei);
+    const token = IERC20__factory.connect(tokenAddress, ethUser);
 
-  //   const contractBalance = await contract.getBalanceOfContractToken(tokenName);
-  //   expect(contractBalance).to.equal(usdcAmountInWei);
+    const usdcAmount = "100"; 
+    const usdcDecimals = 6; 
+    const usdcAmountInWei = ethers.parseUnits(usdcAmount, usdcDecimals);
 
-  //   const stakingUser = await ethers.getImpersonatedSigner("0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503");
+    await token.connect(ethUser).approve(contract.getAddress(), usdcAmountInWei);
 
-  //   const usdcStakingAmount = "20"; // 20 USDC
-  //   const usdcStakingAmountInWei = ethers.parseUnits(usdcStakingAmount, usdcDecimals);
+    const allowance = await token.allowance(ethUser.getAddress(), contract.getAddress());
+    expect(allowance).to.equal(usdcAmountInWei);
 
-  //   await token.connect(stakingUser).approve(contract.getAddress(), usdcStakingAmountInWei);
+    await contract.connect(ethUser).addTokensAmountForStakingReward(tokenAddress, usdcAmountInWei);
 
-  //   const stakingAllowance = await token.allowance(stakingUser.getAddress(), contract.getAddress());
-  //   expect(stakingAllowance).to.equal(usdcStakingAmountInWei);
+    const contractBalance = await contract.getBalanceOfContractToken(tokenAddress);
+    expect(contractBalance).to.equal(usdcAmountInWei);
 
-  //   await contract.connect(stakingUser).addNewStakingAmount(tokenName, usdcStakingAmountInWei);
+    const stakingUser = await ethers.getImpersonatedSigner("0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503");
 
-  //   expect(await contract.getBalanceOfContractToken(tokenName)).to.equal(usdcStakingAmountInWei + usdcAmountInWei);
+    const usdcStakingAmount = "20"; // 20 USDC
+    const usdcStakingAmountInWei = ethers.parseUnits(usdcStakingAmount, usdcDecimals);
 
-  //   const blockNumBefore = await ethers.provider.getBlockNumber();
-  //   const blockBefore = await ethers.provider.getBlock(blockNumBefore);
-  //   const timestampBefore = blockBefore?.timestamp;
+    await token.connect(stakingUser).approve(contract.getAddress(), usdcStakingAmountInWei);
 
-  //   const stakingData = await contract.getInvestigationById(await contract.getLastId());
-  //   expect(stakingData.user).to.equal(await stakingUser.getAddress());
-  //   expect(stakingData.tokenName).to.equal(tokenName);
-  //   expect(stakingData.amount).to.equal(usdcStakingAmountInWei);
-  //   expect(stakingData.startDate).to.equal(timestampBefore);
-  //   expect(stakingData.endDate).to.equal(0);
+    const stakingAllowance = await token.allowance(stakingUser.getAddress(), contract.getAddress());
+    expect(stakingAllowance).to.equal(usdcStakingAmountInWei);
 
-  //   await expect(contract.connect(stakingUser).witdrawTokens(0, usdcStakingAmountInWei)).to.be.revertedWithCustomError(contract, "NoSuchInvestigation")
+    const usdcBalance = await token.balanceOf(stakingUser.getAddress())
 
-  //   const unauthorizedUser = await ethers.getImpersonatedSigner("0x0000000000000000000000000000000000000001");
+    await contract.connect(stakingUser).addNewStakingAmount(tokenAddress, usdcStakingAmountInWei);
 
-  //   await expect(contract.connect(unauthorizedUser).witdrawTokens(await contract.getLastId(), usdcStakingAmountInWei)).to.be.revertedWithCustomError(contract, "NotAllowedToWithdraw")
+    expect(await contract.getBalanceOfContractToken(tokenAddress)).to.equal(usdcStakingAmountInWei + usdcAmountInWei);
 
-  //   const newTimestamp = Math.floor(Date.now() / 1000);
-  //   await setBlockTime(newTimestamp)
+    const blockNumBefore = await ethers.provider.getBlockNumber();
+    const blockBefore = await ethers.provider.getBlock(blockNumBefore);
+    const timestampBefore = blockBefore?.timestamp;
 
-  //   await contract.connect(stakingUser).witdrawTokens(await contract.getLastId(), usdcStakingAmountInWei);
+    const stakingData = await contract.getInvestigationById(await contract.getLastId());
+    expect(stakingData.user).to.equal(await stakingUser.getAddress());
+    expect(stakingData.token).to.equal(tokenAddress);
+    expect(stakingData.amount).to.equal(usdcStakingAmountInWei);
+    expect(stakingData.startDate).to.equal(timestampBefore);
+    expect(stakingData.endDate).to.equal(0);
 
-  //   // await expect(contract.connect(stakingUser).witdrawTokens(await contract.getLastId(), usdcStakingAmountInWei)).to.be.revertedWithCustomError(contract, "TokensWereWithdrawn")
+    const date = new Date('2025-02-10T00:00:00Z');//one day after from start
+    const newTimestamp = Math.floor(date.getTime() / 1000);
+    await setBlockTime(newTimestamp)
 
-  //   // const updatedContractBalance = await contract.getBalanceOfContractToken(tokenName);
-  //   // expect(updatedContractBalance).to.equal(usdcAmountInWei);
+    await contract.getRefund(await contract.getLastId())
 
-  //   // const updatedStakingData = await contract.getInvestigationById(await contract.getLastId());
-  //   // expect(updatedStakingData.endDate).to.not.equal(0);
-  // });
+    expect(await token.balanceOf(stakingUser.getAddress())).to.equal(Number(usdcBalance) - Number(usdcStakingAmountInWei) + 5479)//balance before staking - amount in stakin + reward for one day + 
+  })
 
-  // async function setBlockTime(newTimestamp: number) {
-  //   await network.provider.send('evm_setNextBlockTimestamp', [newTimestamp]);
-  //   await network.provider.send('evm_mine');
-  // }
+  it("client should withdraw half money with reward ", async function() {
+    const { ethUser, contract } = await loadFixture(deploy);
 
+    const tokenAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";//"USDC"
+
+    await contract.connect(ethUser).addNewToken(tokenAddress);
+
+    const availableToken = await contract.connect(ethUser).getAvailableToken(tokenAddress);
+    expect(availableToken).to.equal(true);
+
+    const usdcAmountToWithdraw = "50"; 
+    const usdcDecimalsToWithdraw = 6; 
+    const usdcAmountInWeiToWithdraw = ethers.parseUnits(usdcAmountToWithdraw, usdcDecimalsToWithdraw);
+
+    await expect(contract.connect(ethUser).withdrawTokensFromContract(tokenAddress, usdcAmountInWeiToWithdraw)).to.be.revertedWith('ERC20: transfer amount exceeds balance')
+
+    const token = IERC20__factory.connect(tokenAddress, ethUser);
+
+    const usdcAmount = "100"; 
+    const usdcDecimals = 6; 
+    const usdcAmountInWei = ethers.parseUnits(usdcAmount, usdcDecimals);
+
+    await token.connect(ethUser).approve(contract.getAddress(), usdcAmountInWei);
+
+    const allowance = await token.allowance(ethUser.getAddress(), contract.getAddress());
+    expect(allowance).to.equal(usdcAmountInWei);
+
+    await contract.connect(ethUser).addTokensAmountForStakingReward(tokenAddress, usdcAmountInWei);
+
+    const contractBalance = await contract.getBalanceOfContractToken(tokenAddress);
+    expect(contractBalance).to.equal(usdcAmountInWei);
+
+    const stakingUser = await ethers.getImpersonatedSigner("0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503");
+
+    const usdcStakingAmount = "20"; // 20 USDC
+    const usdcStakingAmountInWei = ethers.parseUnits(usdcStakingAmount, usdcDecimals);
+
+    await token.connect(stakingUser).approve(contract.getAddress(), usdcStakingAmountInWei);
+
+    const stakingAllowance = await token.allowance(stakingUser.getAddress(), contract.getAddress());
+    expect(stakingAllowance).to.equal(usdcStakingAmountInWei);
+
+    await contract.connect(stakingUser).addNewStakingAmount(tokenAddress, usdcStakingAmountInWei);
+
+    expect(await contract.getBalanceOfContractToken(tokenAddress)).to.equal(usdcStakingAmountInWei + usdcAmountInWei);
+
+    const blockNumBefore = await ethers.provider.getBlockNumber();
+    const blockBefore = await ethers.provider.getBlock(blockNumBefore);
+    const timestampBefore = blockBefore?.timestamp;
+
+    const stakingData = await contract.getInvestigationById(await contract.getLastId());
+    expect(stakingData.user).to.equal(await stakingUser.getAddress());
+    expect(stakingData.token).to.equal(tokenAddress);
+    expect(stakingData.amount).to.equal(usdcStakingAmountInWei);
+    expect(stakingData.startDate).to.equal(timestampBefore);
+    expect(stakingData.endDate).to.equal(0);
+
+    await expect(contract.connect(stakingUser).witdrawTokens(0, usdcStakingAmountInWei)).to.be.revertedWithCustomError(contract, "NoSuchInvestigation")
+
+    const unauthorizedUser = await ethers.getImpersonatedSigner("0x0000000000000000000000000000000000000001");
+
+    await expect(contract.connect(unauthorizedUser).witdrawTokens(await contract.getLastId(), usdcStakingAmountInWei)).to.be.revertedWithCustomError(contract, "NotAllowedToWithdraw")
+
+    const date = new Date('2025-02-10T00:00:00Z');//one day after from start
+    const newTimestamp = Math.floor(date.getTime() / 1000);
+
+    setBlockTime(newTimestamp)
+
+    //когда вызывается этот метод, кидается ошибка, что такой палтежа с таким id нет, хотя выше идет проверка что он есть  
+    await contract.connect(stakingUser).witdrawTokens(await contract.getLastId(), usdcStakingAmountInWei);
+
+    // await expect(contract.connect(stakingUser).witdrawTokens(await contract.getLastId(), usdcStakingAmountInWei)).to.be.revertedWithCustomError(contract, "TokensWereWithdrawn")
+
+    // const updatedContractBalance = await contract.getBalanceOfContractToken(tokenAddress);
+    // expect(updatedContractBalance).to.equal(Number(usdcAmountInWei) + 5479);
+
+    // const updatedStakingData = await contract.getInvestigationById(await contract.getLastId());
+    // expect(updatedStakingData.endDate).to.not.equal(0);
+  });
+
+  async function setBlockTime(newTimestamp: number) {
+    await network.provider.send('evm_setNextBlockTimestamp', [newTimestamp]);
+    await network.provider.send('evm_mine');
+  }
 });
