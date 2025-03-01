@@ -109,7 +109,7 @@ contract Staking is OwnableUpgradeable {
         require(inv.user == msg.sender, NotAllowedToWithdraw());
         require(inv.endDate == 0, TokensWereWithdrawn());
 
-        uint result = countRefund(inv) + amountToWitdraw;
+        uint result = countRefund(inv, block.timestamp) + amountToWitdraw;
 
         IERC20 token = IERC20(inv.token);
         token.safeTransfer(inv.user, result);
@@ -130,8 +130,8 @@ contract Staking is OwnableUpgradeable {
         }
     }
 
-    function countRefund(Investigation memory inv) private view returns(uint) {
-        uint256 stakingDuration = (block.timestamp - inv.startDate) / 86400;
+    function countRefund(Investigation memory inv, uint lastTimestamp) private pure returns(uint) {
+        uint256 stakingDuration = (lastTimestamp - inv.startDate) / 86400;
         uint result = ((stakingDuration * PERCENT_IN_YEAR * inv.amount) / (DAYS_IN_YEAR * PRECISION * 1e2));
 
         return result;
@@ -144,7 +144,7 @@ contract Staking is OwnableUpgradeable {
         require(inv.user == msg.sender, NotAllowedToWithdraw());
         require(inv.endDate == 0, TokensWereWithdrawn());
 
-        uint result = countRefund(inv);
+        uint result = countRefund(inv, block.timestamp);
         IERC20 token = IERC20(inv.token);
         bool success = token.transfer(inv.user, result);
 

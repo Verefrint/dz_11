@@ -362,12 +362,9 @@ describe("test staking contract", async function() {
 
     await expect(contract.connect(unauthorizedUser).witdrawTokens(await contract.getLastId(), usdcStakingAmountInWei)).to.be.revertedWithCustomError(contract, "NotAllowedToWithdraw")
 
-    const date = new Date('2025-02-10T00:00:00Z');//one day after from start
-    const newTimestamp = Math.floor(date.getTime() / 1000);
+    const timeStamp = (await ethers.provider.getBlock("latest"))?.timestamp
+    setBlockTime(Number(timeStamp) + 1)
 
-    setBlockTime(newTimestamp)
-
-    //когда вызывается этот метод, кидается ошибка, что такой палтежа с таким id нет, хотя выше идет проверка что он есть  
     await contract.connect(stakingUser).witdrawTokens(await contract.getLastId(), usdcStakingAmountInWei);
 
     // await expect(contract.connect(stakingUser).witdrawTokens(await contract.getLastId(), usdcStakingAmountInWei)).to.be.revertedWithCustomError(contract, "TokensWereWithdrawn")

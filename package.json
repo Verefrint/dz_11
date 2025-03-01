@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@chainlink/test-helpers": "^0.0.7-alpha",
+    "@lidofinance/lido-ethereum-sdk": "^4.2.0",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.12",
     "@openzeppelin/contracts": "^5.2.0",
     "@openzeppelin/contracts-upgradeable": "^5.2.0",
