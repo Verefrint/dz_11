@@ -130,7 +130,7 @@ contract Staking is OwnableUpgradeable {
         }
     }
 
-    function countRefund(Investigation memory inv, uint lastTimestamp) private pure returns(uint) {
+    function countRefund(Investigation memory inv, uint lastTimestamp) public pure returns(uint) {
         uint256 stakingDuration = (lastTimestamp - inv.startDate) / 86400;
         uint result = ((stakingDuration * PERCENT_IN_YEAR * inv.amount) / (DAYS_IN_YEAR * PRECISION * 1e2));
 

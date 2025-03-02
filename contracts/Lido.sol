@@ -5,10 +5,7 @@ interface ILido {
     function submit(address referral) external payable returns (uint256);
 }
 
-interface IERC20 {
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
-    function transfer(address recipient, uint256 amount) external returns (bool);
-}
+
 
 contract LidoStaking {
     ILido public lido;
