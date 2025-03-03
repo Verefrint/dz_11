@@ -4,19 +4,20 @@ pragma solidity ^0.8.28;
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 error AddressIsEmpty();
 error TokenNotAvailable();
 error NoSuchInvestigation();
 error TokensWereWithdrawn();
 error NotAllowedToWithdraw();
-error BadApprove();
 error FailedToTransfer();
-error NotHaveAllowance();
 error ReentrancyTry();
+error TooManyForWithdraw();
 
 //make upgradable
-contract Staking is OwnableUpgradeable {
+contract Staking is OwnableUpgradeable, UUPSUpgradeable {
 
     using SafeERC20 for IERC20;
 
@@ -27,6 +28,8 @@ contract Staking is OwnableUpgradeable {
         uint startDate;
         uint endDate;
     }
+
+    event Withdraw (address user, uint amount, address token, uint startDate, uint endDate);
     
     uint private constant PRECISION = 1e18;
     uint private constant PERCENT_IN_YEAR = 10 * PRECISION;//10% per year => 0.1
@@ -42,6 +45,8 @@ contract Staking is OwnableUpgradeable {
     function initialize(address initialOwner) public initializer {
         __Ownable_init(initialOwner);
     }
+
+    function _authorizeUpgrade(address newImplementation) internal onlyOwner override {}
 
     function getLastId() public view returns(uint) {
         return counterId;
@@ -75,7 +80,6 @@ contract Staking is OwnableUpgradeable {
         require(availableTokens[_tokenAddress] == true, TokenNotAvailable());
 
         IERC20 token = IERC20(_tokenAddress);
-        require(token.allowance(msg.sender, address(this)) >= _amount, NotHaveAllowance());
 
         token.safeTransferFrom(msg.sender, address(this), _amount);
     }
@@ -83,7 +87,6 @@ contract Staking is OwnableUpgradeable {
     function addNewStakingAmount(address _tokenAddress, uint _amount) external returns(uint) {
         IERC20 token = IERC20(_tokenAddress);
 
-        require(token.allowance(msg.sender, address(this)) >= _amount, NotHaveAllowance());
         token.safeTransferFrom(msg.sender, address(this), _amount);
 
         Investigation memory inv = Investigation({
@@ -103,11 +106,12 @@ contract Staking is OwnableUpgradeable {
     function witdrawTokens(uint investigationId, uint amountToWitdraw) external payable {
         require(!isInside, ReentrancyTry());
         isInside = true;
-        Investigation memory inv = usersInvestigations[investigationId];
+        Investigation storage inv = usersInvestigations[investigationId];
 
         require(inv.user != address(0), NoSuchInvestigation());
         require(inv.user == msg.sender, NotAllowedToWithdraw());
         require(inv.endDate == 0, TokensWereWithdrawn());
+        require(inv.amount >= amountToWitdraw, TooManyForWithdraw());
 
         uint result = countRefund(inv, block.timestamp) + amountToWitdraw;
 
@@ -115,19 +119,14 @@ contract Staking is OwnableUpgradeable {
         token.safeTransfer(inv.user, result);
         isInside = false;
 
-        usersInvestigations[investigationId].endDate = block.timestamp;
-    
-        if (amountToWitdraw < inv.amount) {
-            counterId++;
-
-            usersInvestigations[counterId] = Investigation({
-                user: inv.user,
-                token: inv.token,
-                amount: inv.amount - amountToWitdraw,
-                startDate: inv.startDate,
-                endDate: 0
-            });
+        if (inv.amount == amountToWitdraw) {
+            inv.endDate = block.timestamp;
+        } else {
+            inv.startDate = block.timestamp;
+            inv.amount -= amountToWitdraw;
         }
+        
+        emit Withdraw(inv.user, amountToWitdraw, inv.token, inv.startDate, inv.endDate);
     }
 
     function countRefund(Investigation memory inv, uint lastTimestamp) public pure returns(uint) {
